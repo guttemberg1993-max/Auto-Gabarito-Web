@@ -1,0 +1,851 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Aplicação web para leitura e correção de cartões-resposta de avaliações objetivas.">
+  <title>Auto Gabarito Web</title>
+
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      max-width: 1000px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+      color: #222;
+      line-height: 1.5;
+    }
+
+    h1 {
+      margin-bottom: 4px;
+    }
+
+    .sub, .hint {
+      color: #555;
+    }
+
+    section {
+      border: 1px solid #d7dce2;
+      border-radius: 10px;
+      padding: 18px;
+      margin: 18px 0;
+    }
+
+    label {
+      display: inline-block;
+      margin: 6px 10px 6px 0;
+    }
+
+    input, select, button {
+      font: inherit;
+      padding: 9px;
+      margin: 4px 0;
+    }
+
+    input[type="text"], select {
+      width: min(100%, 440px);
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      border-radius: 6px;
+      background: #174ea6;
+      color: white;
+      padding: 10px 15px;
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid #f0b429;
+      outline-offset: 2px;
+    }
+
+    .mensagem {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+    }
+
+    .erro {
+      color: #8b1111;
+      background: #fff0f0;
+    }
+
+    .ok {
+      color: #145b2b;
+      background: #effaf1;
+    }
+
+    .resultado {
+      border-top: 1px solid #ddd;
+      margin-top: 14px;
+      padding-top: 10px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 8px 0;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 7px;
+      text-align: left;
+    }
+
+    th {
+      background: #f2f2f2;
+    }
+
+    /* GRADE COMPACTA DO GABARITO */
+
+    .grade {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      column-gap: 12px;
+      row-gap: 2px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .grade p {
+      margin: 2px 0;
+      padding: 2px 4px;
+      white-space: nowrap;
+      font-size: .92rem;
+      line-height: 1.25;
+    }
+
+    .grade label {
+      margin: 1px 4px 1px 0;
+      white-space: nowrap;
+      font-size: .9rem;
+    }
+
+    .grade input[type="radio"] {
+      padding: 0;
+      margin: 0 2px 0 0;
+      vertical-align: middle;
+    }
+
+    /* AJUSTE PARA TELAS MENORES */
+
+    @media (max-width: 700px) {
+      body {
+        margin-top: 12px;
+      }
+
+      section {
+        padding: 12px;
+      }
+
+      .grade {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grade p {
+        white-space: normal;
+      }
+
+      table {
+        font-size: .9rem;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .grade {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Auto Gabarito Web</h1>
+    <p class="sub">
+      Cadastro de gabaritos, leitura de cartões-resposta e correção de avaliações objetivas.
+    </p>
+  </header>
+
+  <main>
+
+    <!-- ETAPA 1: CADASTRO DO GABARITO -->
+
+    <section aria-labelledby="titulo-cadastro">
+
+      <h2 id="titulo-cadastro">1. Cadastrar gabarito oficial</h2>
+
+      <form id="formularioCadastro">
+
+        <label for="avaliacao">Nome da avaliação:</label><br>
+
+        <input
+          type="text"
+          id="avaliacao"
+          name="avaliacao"
+          placeholder="Ex.: Avaliação de Física"
+          required
+        >
+
+        <p>
+          <label for="quantidade">Quantidade de questões:</label><br>
+
+          <input
+            type="number"
+            id="quantidade"
+            name="quantidade"
+            min="20"
+            max="20"
+            value="20"
+            readonly
+          >
+        </p>
+
+        <button type="button" id="botaoCriar">
+          Criar gabarito
+        </button>
+
+      </form>
+
+      <div id="areaGabarito"></div>
+
+      <div
+        id="mensagemCadastro"
+        class="mensagem"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+    </section>
+
+    <!-- ETAPA 2: CORREÇÃO DOS CARTÕES -->
+
+    <section aria-labelledby="titulo-correcao">
+
+      <h2 id="titulo-correcao">2. Corrigir cartões-resposta</h2>
+
+      <p>
+        Selecione um gabarito oficial cadastrado e envie uma foto ou um PDF.
+        Para arquivos PDF, utilize um cartão-resposta por página.
+      </p>
+
+      <form id="formCorrecao">
+
+        <label for="avaliacaoCorrecao">Gabarito oficial:</label><br>
+
+        <select
+          id="avaliacaoCorrecao"
+          name="avaliacao"
+          required
+        >
+          <option value="">Carregando gabaritos...</option>
+        </select><br>
+
+        <label for="arquivoCorrecao">
+          Foto ou PDF dos cartões:
+        </label><br>
+
+        <input
+          type="file"
+          id="arquivoCorrecao"
+          name="imagem"
+          accept=".png,.jpg,.jpeg,.bmp,.webp,.pdf"
+          required
+        ><br>
+
+        <p class="hint">
+          Limite de envio: 40 MB e até 60 páginas por PDF.
+          O leitor foi calibrado para o modelo de cartão de 20 questões do projeto.
+          Confira os resultados antes de registrar notas.
+        </p>
+
+        <button type="submit" id="botaoCorrigir">
+          Ler e corrigir avaliação
+        </button>
+
+      </form>
+
+      <div
+        id="mensagemCorrecao"
+        class="mensagem"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+      <div id="resultadosCorrecao"></div>
+
+    </section>
+
+    <!-- ETAPA 3: TRANSCRIÇÃO -->
+
+    <section aria-labelledby="titulo-transcricao">
+
+      <h2 id="titulo-transcricao">3. Apenas transcrever respostas</h2>
+
+      <p>
+        Use esta opção quando desejar identificar as alternativas marcadas
+        sem comparar com um gabarito oficial.
+      </p>
+
+      <form id="formTranscricao">
+
+        <label for="arquivoTranscricao">Foto ou PDF:</label><br>
+
+        <input
+          type="file"
+          id="arquivoTranscricao"
+          name="imagem"
+          accept=".png,.jpg,.jpeg,.bmp,.webp,.pdf"
+          required
+        ><br>
+
+        <button type="submit" id="botaoTranscrever">
+          Ler e transcrever arquivo
+        </button>
+
+      </form>
+
+      <div
+        id="mensagemTranscricao"
+        class="mensagem"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+      <div id="resultadosTranscricao"></div>
+
+    </section>
+
+  </main>
+
+<script>
+
+const alternativas = ["A", "B", "C", "D"];
+
+const porId = (id) => document.getElementById(id);
+
+function escaparHtml(valor) {
+  return String(valor).replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+}
+
+function mostrarMensagem(elemento, texto, tipo = "") {
+  elemento.className = "mensagem " + tipo;
+  elemento.textContent = texto;
+}
+
+/* CRIAÇÃO DO GABARITO */
+
+porId("botaoCriar").addEventListener("click", criarGabarito);
+
+function criarGabarito() {
+
+  const nome = porId("avaliacao").value.trim();
+  const area = porId("areaGabarito");
+
+  if (!nome) {
+    mostrarMensagem(
+      porId("mensagemCadastro"),
+      "Digite o nome da avaliação.",
+      "erro"
+    );
+    return;
+  }
+
+  let html = `
+    <h3>Gabarito: ${escaparHtml(nome)}</h3>
+    <form id="formGabarito">
+      <div class="grade">
+  `;
+
+  for (let i = 1; i <= 20; i++) {
+
+    html += `<p><strong>Questão ${i}</strong><br>`;
+
+    for (const alternativa of alternativas) {
+
+      html += `
+        <label>
+          <input
+            type="radio"
+            name="questao${i}"
+            value="${alternativa}"
+            required
+          >
+          ${alternativa}
+        </label>
+      `;
+
+    }
+
+    html += `</p>`;
+  }
+
+  html += `
+      </div>
+      <button type="submit">Salvar gabarito oficial</button>
+    </form>
+  `;
+
+  area.innerHTML = html;
+
+  porId("formGabarito").addEventListener(
+    "submit",
+    salvarGabarito
+  );
+
+}
+
+/* SALVAMENTO DO GABARITO */
+
+async function salvarGabarito(evento) {
+
+  evento.preventDefault();
+
+  const nome = porId("avaliacao").value.trim();
+  const respostas = [];
+
+  for (let i = 1; i <= 20; i++) {
+
+    const marcada = document.querySelector(
+      `input[name="questao${i}"]:checked`
+    );
+
+    if (!marcada) {
+
+      mostrarMensagem(
+        porId("mensagemCadastro"),
+        `Selecione uma alternativa para a questão ${i}.`,
+        "erro"
+      );
+
+      return;
+    }
+
+    respostas.push(marcada.value);
+
+  }
+
+  try {
+
+    const resposta = await fetch("/salvar", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        nome,
+        respostas
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        dados.mensagem || "Não foi possível salvar o gabarito."
+      );
+    }
+
+    mostrarMensagem(
+      porId("mensagemCadastro"),
+      `${dados.mensagem} Avaliação: ${dados.avaliacao}. Questões: ${dados.total_questoes}.`,
+      "ok"
+    );
+
+    await carregarGabaritos();
+
+  } catch (erro) {
+
+    mostrarMensagem(
+      porId("mensagemCadastro"),
+      erro.message || "Falha de comunicação com o servidor.",
+      "erro"
+    );
+
+  }
+
+}
+
+/* CARREGAMENTO DOS GABARITOS */
+
+async function carregarGabaritos() {
+
+  const seletor = porId("avaliacaoCorrecao");
+
+  try {
+
+    const resposta = await fetch("/gabaritos");
+
+    if (!resposta.ok) {
+      throw new Error("Falha ao consultar os gabaritos.");
+    }
+
+    const dados = await resposta.json();
+
+    seletor.innerHTML = `
+      <option value="">
+        Selecione um gabarito de 20 questões
+      </option>
+    `;
+
+    for (const item of dados) {
+
+      const opcao = document.createElement("option");
+
+      opcao.value = item.nome;
+
+      opcao.textContent =
+        `${item.nome} (${item.total_questoes} questões)`;
+
+      seletor.appendChild(opcao);
+
+    }
+
+    if (dados.length === 0) {
+
+      seletor.innerHTML = `
+        <option value="">
+          Nenhum gabarito válido — cadastre acima
+        </option>
+      `;
+
+    }
+
+  } catch (erro) {
+
+    seletor.innerHTML = `
+      <option value="">
+        Não foi possível carregar os gabaritos
+      </option>
+    `;
+
+    mostrarMensagem(
+      porId("mensagemCorrecao"),
+      erro.message,
+      "erro"
+    );
+
+  }
+
+}
+
+/* CORREÇÃO DOS CARTÕES-RESPOSTA */
+
+porId("formCorrecao").addEventListener(
+  "submit",
+  async function(evento) {
+
+    evento.preventDefault();
+
+    const botao = porId("botaoCorrigir");
+    const saida = porId("resultadosCorrecao");
+
+    botao.disabled = true;
+    botao.textContent = "Processando...";
+
+    saida.innerHTML = "";
+
+    mostrarMensagem(
+      porId("mensagemCorrecao"),
+      "Aguarde enquanto os cartões são analisados."
+    );
+
+    try {
+
+      const resposta = await fetch("/corrigir", {
+        method: "POST",
+        body: new FormData(this)
+      });
+
+      const dados = await resposta.json();
+
+      if (!resposta.ok) {
+        throw new Error(dados.mensagem || "Falha na correção.");
+      }
+
+      mostrarMensagem(
+        porId("mensagemCorrecao"),
+        `${dados.mensagem}
+Avaliação: ${dados.avaliacao}
+Páginas: ${dados.total_paginas}; processadas: ${dados.paginas_processadas}; com falha: ${dados.falhas.length}`,
+        dados.falhas.length ? "erro" : "ok"
+      );
+
+      let html = "";
+
+      for (const pagina of dados.resultados_paginas) {
+
+        html += `
+          <div class="resultado">
+            <h3>Resultado — página ${pagina.pagina}</h3>
+
+            <p>
+              <strong>Acertos:</strong>
+              ${pagina.acertos} de ${pagina.total_questoes}
+              |
+              <strong>Erros:</strong> ${pagina.erros}
+              |
+              <strong>Nota:</strong>
+              ${pagina.nota_0_a_10.toFixed(2)} / 10
+            </p>
+
+            <p>
+              Em branco: ${pagina.em_branco}
+              |
+              Marcações duplas: ${pagina.marcacao_dupla}
+            </p>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Questão</th>
+                  <th>Resposta detectada</th>
+                  <th>Gabarito</th>
+                  <th>Resultado</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        for (const item of pagina.resultados) {
+
+          html += `
+            <tr>
+              <td>${item.questao}</td>
+              <td>${escaparHtml(item.resposta_aluno)}</td>
+              <td>${escaparHtml(item.gabarito)}</td>
+              <td>${escaparHtml(item.resultado)}</td>
+            </tr>
+          `;
+
+        }
+
+        html += `
+              </tbody>
+            </table>
+
+            <p class="hint">
+              ${escaparHtml(
+                pagina.mensagem ||
+                "Confira visualmente as respostas antes de registrar a nota."
+              )}
+            </p>
+          </div>
+        `;
+
+      }
+
+      if (dados.falhas.length) {
+
+        html += `
+          <div class="resultado erro">
+            <h3>Páginas não processadas</h3>
+            <ul>
+        `;
+
+        for (const falha of dados.falhas) {
+
+          html += `
+            <li>
+              Página ${falha.pagina}:
+              ${escaparHtml(falha.erro)}
+            </li>
+          `;
+
+        }
+
+        html += `
+            </ul>
+          </div>
+        `;
+
+      }
+
+      saida.innerHTML =
+        html || "<p>Nenhuma página foi processada.</p>";
+
+    } catch (erro) {
+
+      mostrarMensagem(
+        porId("mensagemCorrecao"),
+        erro.message || "Falha de comunicação com o servidor.",
+        "erro"
+      );
+
+    } finally {
+
+      botao.disabled = false;
+      botao.textContent = "Ler e corrigir avaliação";
+
+    }
+
+  }
+);
+
+/* TRANSCRIÇÃO DAS RESPOSTAS */
+
+porId("formTranscricao").addEventListener(
+  "submit",
+  async function(evento) {
+
+    evento.preventDefault();
+
+    const botao = porId("botaoTranscrever");
+    const saida = porId("resultadosTranscricao");
+
+    botao.disabled = true;
+    botao.textContent = "Lendo arquivo...";
+
+    saida.innerHTML = "";
+
+    mostrarMensagem(
+      porId("mensagemTranscricao"),
+      "Aguarde enquanto as páginas são analisadas."
+    );
+
+    try {
+
+      const resposta = await fetch("/transcrever", {
+        method: "POST",
+        body: new FormData(this)
+      });
+
+      const dados = await resposta.json();
+
+      if (!resposta.ok) {
+        throw new Error(
+          dados.mensagem || "Falha na transcrição."
+        );
+      }
+
+      mostrarMensagem(
+        porId("mensagemTranscricao"),
+        `${dados.mensagem}
+Arquivo: ${dados.arquivo}
+Páginas: ${dados.total_paginas}; transcritas: ${dados.paginas_processadas}; com falha: ${dados.falhas.length}`,
+        dados.falhas.length ? "erro" : "ok"
+      );
+
+      let html = "";
+
+      for (const pagina of dados.paginas) {
+
+        html += `
+          <div class="resultado">
+            <h3>Transcrição — página ${pagina.pagina}</h3>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Questão</th>
+                  <th>Resposta detectada</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        pagina.respostas.forEach((resposta, indice) => {
+
+          html += `
+            <tr>
+              <td>${indice + 1}</td>
+              <td>${escaparHtml(resposta)}</td>
+            </tr>
+          `;
+
+        });
+
+        html += `
+              </tbody>
+            </table>
+
+            <p>
+              <strong>Sequência:</strong>
+              ${pagina.respostas.map(escaparHtml).join(", ")}
+            </p>
+          </div>
+        `;
+
+      }
+
+      if (dados.falhas.length) {
+
+        html += `
+          <div class="resultado erro">
+            <h3>Páginas que precisam ser conferidas</h3>
+            <ul>
+        `;
+
+        for (const falha of dados.falhas) {
+
+          html += `
+            <li>
+              Página ${falha.pagina}:
+              ${escaparHtml(falha.erro)}
+            </li>
+          `;
+
+        }
+
+        html += `
+            </ul>
+          </div>
+        `;
+
+      }
+
+      saida.innerHTML =
+        html || "<p>Nenhuma página foi processada.</p>";
+
+    } catch (erro) {
+
+      mostrarMensagem(
+        porId("mensagemTranscricao"),
+        erro.message || "Falha de comunicação com o servidor.",
+        "erro"
+      );
+
+    } finally {
+
+      botao.disabled = false;
+      botao.textContent = "Ler e transcrever arquivo";
+
+    }
+
+  }
+);
+
+/* INICIALIZAÇÃO */
+
+carregarGabaritos();
+
+</script>
+
+</body>
+</html>
